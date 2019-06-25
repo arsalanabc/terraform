@@ -8,4 +8,9 @@ resource "aws_instance" "test" {
   tags {
     Name = "test-ec2"
   }
+
+  user_data = <<-EOF
+    echo "hello world" > index.html
+    nohup busybox httpd -fp 8080 &
+    EOF
 }
