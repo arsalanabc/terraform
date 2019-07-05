@@ -3,6 +3,11 @@ variable "server_port" {
   default     = "8080"
 }
 
+variable "server_port_lb" {
+  description = "Port to allow income/outgoing request to lb"
+  default     = "80"
+}
+
 provider "aws" {
   region = "eu-west-1"
 }
@@ -13,6 +18,7 @@ resource "aws_instance" "test-ec2-1" {
   security_groups = ["${aws_security_group.instance.name}"]
   tags {
     Name = "test-ec2-1"
+    environment = "playground"
   }
 
   user_data = <<-EOF
@@ -28,6 +34,7 @@ resource "aws_instance" "test-ec2-2" {
   security_groups = ["${aws_security_group.instance.name}"]
   tags {
     Name = "test-ec2-2"
+    environment = "playground"
   }
 
   user_data = <<-EOF
@@ -43,6 +50,7 @@ resource "aws_instance" "test-ec2-3" {
   security_groups = ["${aws_security_group.instance.name}"]
   tags {
     Name = "test-ec2-3"
+    environment = "playground"
   }
 
   user_data = <<-EOF
@@ -59,5 +67,31 @@ resource "aws_security_group" "instance" {
     to_port     = "${var.server_port}"
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+  tags {
+    environment = "playground"
+  }
+}
+
+resource "aws_elb" "http-lb" {
+  name = "terraform-elb"
+  availability_zones = ["eu-west-1a","eu-west-1b","eu-west-1c"]
+
+  listener {
+    instance_port = 8080
+    instance_protocol = "http"
+    lb_port = 80
+    lb_protocol = "http"
+  }
+
+  instances = ["${aws_instance.test-ec2-1.id}","${aws_instance.test-ec2-2.id}","${aws_instance.test-ec2-3.id}"]
+  cross_zone_load_balancing   = true
+  idle_timeout                = 400
+  connection_draining         = true
+  connection_draining_timeout = 400
+
+  tags = {
+    name = "terraform-elb"
+    environment = "playground"
   }
 }
