@@ -1,19 +1,9 @@
-variable "server_port" {
-  description = "Port to allow income/outgoing requests"
-  default     = "8080"
-}
-
-variable "server_port_lb" {
-  description = "Port to allow income/outgoing request to lb"
-  default     = "80"
-}
-
 provider "aws" {
-  region = "eu-west-1"
+  region = "${var.region}"
 }
 
 resource "aws_instance" "test-ec2-1" {
-  ami = "ami-ee0b0688"
+  ami = "${var.ami}"
   instance_type   = "t1.micro"
   security_groups = ["${aws_security_group.instance.name}"]
   tags {
@@ -29,7 +19,7 @@ resource "aws_instance" "test-ec2-1" {
 }
 
 resource "aws_instance" "test-ec2-2" {
-  ami = "ami-ee0b0688"
+  ami = "${var.ami}"
   instance_type   = "t1.micro"
   security_groups = ["${aws_security_group.instance.name}"]
   tags {
@@ -45,7 +35,7 @@ resource "aws_instance" "test-ec2-2" {
 }
 
 resource "aws_instance" "test-ec2-3" {
-  ami = "ami-ee0b0688"
+  ami = "${var.ami}"
   instance_type   = "t1.micro"
   security_groups = ["${aws_security_group.instance.name}"]
   tags {
@@ -78,9 +68,9 @@ resource "aws_elb" "http-lb" {
   availability_zones = ["eu-west-1a","eu-west-1b","eu-west-1c"]
 
   listener {
-    instance_port = 8080
+    instance_port = "${var.server_port}"
     instance_protocol = "http"
-    lb_port = 80
+    lb_port = "${var.server_port_lb_http}"
     lb_protocol = "http"
   }
 
