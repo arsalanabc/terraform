@@ -41,6 +41,7 @@ resource "aws_autoscaling_group" "instance_asg" {
   max_size              = 5
 
   load_balancers        = ["${aws_elb.http-lb.name}"]
+  health_check_type     = "ELB"
   tag {
     key                 = "name"
     propagate_at_launch = true
@@ -51,6 +52,14 @@ resource "aws_autoscaling_group" "instance_asg" {
 resource "aws_elb" "http-lb" {
   name = "terraform-elb"
   availability_zones  = ["${data.aws_availability_zones.all.names}"]
+
+  health_check {
+    healthy_threshold   = 2
+    interval            = 30
+    target              = "HTTP:${var.server_port}/"
+    timeout             = 3
+    unhealthy_threshold = 2
+  }
 
   listener {
     instance_port = "${var.server_port}"
