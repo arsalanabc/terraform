@@ -2,54 +2,6 @@ provider "aws" {
   region = "${var.region}"
 }
 
-resource "aws_instance" "test-ec2-1" {
-  ami = "${var.ami}"
-  instance_type   = "t1.micro"
-  security_groups = ["${aws_security_group.instance.name}"]
-  tags {
-    Name = "test-ec2-1"
-    environment = "playground"
-  }
-
-  user_data = <<-EOF
-              #!/bin/bash
-              echo "Hello from instance 1" > index.html
-              nohup busybox httpd -f -p "${var.server_port}" &
-              EOF
-}
-
-resource "aws_instance" "test-ec2-2" {
-  ami = "${var.ami}"
-  instance_type   = "t1.micro"
-  security_groups = ["${aws_security_group.instance.name}"]
-  tags {
-    Name = "test-ec2-2"
-    environment = "playground"
-  }
-
-  user_data = <<-EOF
-              #!/bin/bash
-              echo "Hello from instance 2" > index.html
-              nohup busybox httpd -f -p "${var.server_port}" &
-              EOF
-}
-
-resource "aws_instance" "test-ec2-3" {
-  ami = "${var.ami}"
-  instance_type   = "t1.micro"
-  security_groups = ["${aws_security_group.instance.name}"]
-  tags {
-    Name = "test-ec2-3"
-    environment = "playground"
-  }
-
-  user_data = <<-EOF
-              #!/bin/bash
-              echo "Hello from instance 3" > index.html
-              nohup busybox httpd -f -p "${var.server_port}" &
-              EOF
-}
-
 resource "aws_security_group" "instance" {
   name = "terraform-example-sg"
   ingress {
@@ -63,9 +15,42 @@ resource "aws_security_group" "instance" {
   }
 }
 
+resource "aws_launch_configuration" "instance_config" {
+  name_prefix     = "cluster-"
+  image_id        = "${var.ami}"
+  instance_type   = "t1.micro"
+  security_groups = ["${aws_security_group.instance.name}"]
+
+  user_data = <<-EOF
+              #!/bin/bash
+              echo "Hello from instance 3" > index.html
+              nohup busybox httpd -f -p "${var.server_port}" &
+              EOF
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+data "aws_availability_zones" "all" {}
+
+resource "aws_autoscaling_group" "instance_asg" {
+  launch_configuration  = "${aws_launch_configuration.instance_config.id}"
+  availability_zones    = ["${data.aws_availability_zones.all.names}"]
+  min_size              = 2
+  max_size              = 5
+
+  load_balancers        = ["${aws_elb.http-lb.name}"]
+  tag {
+    key                 = "name"
+    propagate_at_launch = true
+    value               = "Instance_terraform_asg"
+  }
+}
+
 resource "aws_elb" "http-lb" {
   name = "terraform-elb"
-  availability_zones = ["eu-west-1a","eu-west-1b","eu-west-1c"]
+  availability_zones  = ["${data.aws_availability_zones.all.names}"]
 
   listener {
     instance_port = "${var.server_port}"
@@ -74,7 +59,6 @@ resource "aws_elb" "http-lb" {
     lb_protocol = "http"
   }
 
-  instances = ["${aws_instance.test-ec2-1.id}","${aws_instance.test-ec2-2.id}","${aws_instance.test-ec2-3.id}"]
   cross_zone_load_balancing   = true
   idle_timeout                = 400
   connection_draining         = true
